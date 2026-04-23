@@ -12,7 +12,6 @@ lerobot_humanoid_runtime/
 │   ├── RL_agent_isolated.py
 │   └── policy/
 ├── hardware/
-│   ├── bipedal_robot.py
 │   ├── mit_codec.py
 │   └── robstride_toolkit.py
 ├── imu/
@@ -20,9 +19,10 @@ lerobot_humanoid_runtime/
 │   ├── IMU_JY901.py
 │   └── IMU_BNO055
 ├── robot/
+│   ├── bipedal_robot.py
 │   ├── root_constant.py
 │   ├── sim_robot.py
-│   └── models/bipedal_plateform_no_arms/
+│   └── lerobot-humanoid-model/models/bipedal_plateform_no_arms/
 ├── logs/
 ├── hip_imu_debug.py
 ├── measure_actuator_delay.py
@@ -37,7 +37,7 @@ lerobot_humanoid_runtime/
 Use package imports from repo root:
 
 ```python
-from hardware.bipedal_robot import BipedalRobotController
+from robot.bipedal_robot import BipedalRobotController
 from robot.sim_robot import SimBipedalRobotController
 from control.RL_agent_isolated import RLAgent
 from imu.IMU_integration import IMU
@@ -48,7 +48,7 @@ All internal imports were updated to this layout.
 
 ## Core modules
 
-- `hardware.bipedal_robot.BipedalRobotController`: real CAN controller.
+- `robot.bipedal_robot.BipedalRobotController`: real CAN controller.
 - `robot.sim_robot.SimBipedalRobotController`: MuJoCo simulator with the same control API.
 - `control.RL_agent_isolated.RLAgent`: policy runner (ONNX/Torch), observation assembly, action dispatch.
 - `imu.IMU_integration.IMU`: IMU backend selector (`bno085`, `bno055`, `jy901`, or mock).
@@ -66,7 +66,7 @@ Example:
 
 ```python
 from control.RL_agent_isolated import RLAgent
-from hardware.bipedal_robot import BipedalRobotController
+from robot.bipedal_robot import BipedalRobotController
 
 robot = BipedalRobotController(control_hz=100.0)
 agent = RLAgent.from_files(
@@ -109,12 +109,12 @@ stop_session(robot=robot, gamepad=pad, agent=agent)
 Current names kept for compatibility (especially model/policy artifacts), but recommended future migration:
 
 1. `robot/bipdeal_config.py` -> `robot/bipedal_config_legacy.py`
-2. `robot/models/bipedal_plateform_no_arms` -> `robot/models/bipedal_platform_no_arms`
+2. `robot/lerobot-humanoid-model/models/bipedal_plateform_no_arms` -> `robot/lerobot-humanoid-model/models/bipedal_platform_no_arms`
 3. `control/policy/less_noice_*` -> `control/policy/less_noise_*`
 
 If you migrate these names, do it in one commit with a global path update and keep temporary compatibility aliases.
 
 ## Notes
 
-- `robot/root_constant.py` now resolves model paths from `robot/models/bipedal_plateform_no_arms/...`.
-- `robot/sim_robot.py` now uses an absolute default MJCF path based on its own file location.
+- `robot/root_constant.py` now resolves model paths from `robot/lerobot-humanoid-model/models/bipedal_plateform_no_arms/...`.
+- `robot/sim_robot.py` now uses the SB model scene at `robot/lerobot-humanoid-model/models/bipedal_plateform_no_arms/mjcf/scene.xml`.

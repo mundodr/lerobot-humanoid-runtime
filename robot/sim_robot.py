@@ -30,19 +30,21 @@ try:
 except Exception:  # pragma: no cover - optional runtime dependency
     mj_viewer = None
 
-DEFAULT_MJCF_PATH = (
-    Path(__file__).resolve().parent
+_ROBOT_DIR = Path(__file__).resolve().parent
+_SB_MJCF_SCENE_PATH = (
+    _ROBOT_DIR
+    / "lerobot-humanoid-model"
     / "models"
     / "bipedal_plateform_no_arms"
     / "mjcf"
-    / "sim_scene_safe.xml"
+    / "scene.xml"
 )
+DEFAULT_MJCF_PATH = _SB_MJCF_SCENE_PATH
 
 # Match the real controller: keep the MIT feedforward torque field pinned at 0 Nm.
 ENABLE_MIT_FEEDFORWARD_TORQUE = False
 
-# Mirrors gains and init pose from:
-# robot/models/bipedal_plateform_no_arms/mjcf/lerobot_humanoid_no_arms_constants.py
+# Mirrors gains and init pose from no-arms model constants in the SB model repo.
 LEROBOT_SIM_GAINS_BY_MOTOR_ID: Dict[int, tuple[float, float]] = {
     1: (40.0, 1.0),   # hipz_left
     2: (110.0, 1.0),  # hipx_left

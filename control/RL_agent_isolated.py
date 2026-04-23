@@ -15,7 +15,7 @@ from typing import Any, Dict, List, Optional, Sequence, Tuple
 import numpy as np
 
 try:
-    from hardware.bipedal_robot import BipedalRobotController
+    from robot.bipedal_robot import BipedalRobotController
 except Exception:  # pragma: no cover
     BipedalRobotController = Any  # type: ignore
 

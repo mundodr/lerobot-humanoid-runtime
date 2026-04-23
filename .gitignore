@@ -1,0 +1,38 @@
+# Python bytecode / caches
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments / local env files
+.venv/
+venv/
+env/
+.env
+.env.*
+
+# Tooling caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+
+# Coverage artifacts
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+
+# Runtime outputs
+logs/
+*.log
+*.tmp
+
+# Local debug artifacts
+control/policy/**/debug*.csv
+
+# Editor / OS junk
+*.swp
+*.swo
+*.bak
+.DS_Store
+Thumbs.db

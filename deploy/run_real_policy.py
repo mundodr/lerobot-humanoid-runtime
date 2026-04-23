@@ -85,7 +85,7 @@ def main() -> int:
     config_path, policy_path = resolve_policy_files(Path(args.policy_dir))
     from apps.gamepad_controller import GamepadController
     from control.RL_agent_isolated import RLAgent
-    from hardware.bipedal_robot import BipedalRobotController
+    from robot.bipedal_robot import BipedalRobotController
 
     robot = None
     pad = None
