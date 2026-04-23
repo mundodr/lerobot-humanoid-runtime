@@ -88,9 +88,9 @@ pad.start()
 
 agent = RLAgent.from_files(
     robot,
-    config_path="control/policy/tao_iteration/config.yaml",
-    policy_path="control/policy/tao_iteration/policy.onnx", #2026-03-04_17-28-46.onnx",
-    log_path="control/policy/tao_iteration/debug_ctrl5.csv",
+    config_path="control/policy/codex_iteration_3/config.yaml",
+    policy_path="control/policy/codex_iteration_3/policy.onnx", #2026-03-04_17-28-46.onnx",
+    log_path="control/policy/codex_iteration_3/debug_ctrl5.csv",
     log_observation=True,
     log_action=True,
     log_every_n=1,
@@ -99,7 +99,7 @@ agent = RLAgent.from_files(
 agent.spec.joint_vel_source = "finite_difference"  # or "robot_state_estimation"
 
 # manual global scaling remains available
-agent.spec.action_scale = 0.3
+agent.spec.action_scale = 0.
 # pad provides (lin_x, lin_y, yaw_rate) commands
 agent.set_command_source(pad)
 agent.start()
