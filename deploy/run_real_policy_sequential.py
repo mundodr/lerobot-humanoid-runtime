@@ -187,7 +187,7 @@ def main() -> int:
     args = parse_args()
     config_path, policy_path = resolve_policy_files(Path(args.policy_dir))
     from control.RL_agent_isolated import RLAgent
-    from hardware.bipedal_robot import BipedalRobotController
+    from robot.bipedal_robot import BipedalRobotController
 
     robot = None
     pad = None

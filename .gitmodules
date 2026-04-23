@@ -1,0 +1,3 @@
+[submodule "robot/lerobot-humanoid-model"]
+	path = robot/lerobot-humanoid-model
+	url = git@github.com:Virgileboat/lerobot-humanoid-model.git

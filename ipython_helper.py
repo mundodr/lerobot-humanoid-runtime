@@ -13,7 +13,7 @@ robot.start_viewer()
 
 from apps.gamepad_controller import GamepadController
 from control.RL_agent_isolated import RLAgent
-from hardware.bipedal_robot import BipedalRobotController
+from robot.bipedal_robot import BipedalRobotController
 from imu.IMU_integration import IMU
 
 

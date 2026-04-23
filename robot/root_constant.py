@@ -9,7 +9,12 @@ from typing import Dict, Tuple
 # Robot model paths
 # -------------------------
 ROBOT_DIR = Path(__file__).resolve().parent
-MODEL_DIR = ROBOT_DIR / "models" / "bipedal_plateform_no_arms"
+MODEL_DIR = (
+    ROBOT_DIR
+    / "lerobot-humanoid-model"
+    / "models"
+    / "bipedal_plateform_no_arms"
+)
 MODEL_URDF_DIR = MODEL_DIR / "urdf"
 MODEL_URDF_PATH = MODEL_URDF_DIR / "robot.urdf"
 
