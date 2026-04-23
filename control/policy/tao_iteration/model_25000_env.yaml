@@ -1,0 +1,77 @@
+inference_hz: 50.0
+action_scale: 1.0
+joint_vel_source: auto
+env_cfg:
+  value:
+    actions:
+      joint_pos:
+        joint_names:
+        - hipz_right
+        - hipx_right
+        - hipy_right
+        - knee_right
+        - ankley_right
+        - anklex_right
+        - hipz_left
+        - hipx_left
+        - hipy_left
+        - knee_left
+        - ankley_left
+        - anklex_left
+        scale:
+          hipz_right: 1.0
+          hipx_right: 1.0
+          hipy_right: 1.0
+          knee_right: 1.0
+          ankley_right: 1.0
+          anklex_right: 1.0
+          hipz_left: 1.0
+          hipx_left: 1.0
+          hipy_left: 1.0
+          knee_left: 1.0
+          ankley_left: 1.0
+          anklex_left: 1.0
+        offset: 0.0
+        preserve_order: false
+        use_default_offset: true
+    commands:
+      twist:
+        ranges:
+          lin_vel_x:
+          - -0.05
+          - 0.05
+          lin_vel_y:
+          - -0.05
+          - 0.05
+          ang_vel_z:
+          - -0.1
+          - 0.1
+    observations:
+      policy:
+        history_length: 5
+        terms:
+          base_ang_vel:
+            scale: 0.2
+          projected_gravity: {}
+          velocity_commands: {}
+          controlled_joint_pos: {}
+          controlled_joint_vel:
+            scale: 0.05
+          actions: {}
+    scene:
+      entities:
+        robot:
+          init_state:
+            joint_pos:
+              hipz_right: 0.0
+              hipx_right: 0.0
+              hipy_right: 0.0
+              knee_right: 0.0
+              ankley_right: 0.0
+              anklex_right: 0.0
+              hipz_left: 0.0
+              hipx_left: 0.0
+              hipy_left: 0.0
+              knee_left: 0.0
+              ankley_left: 0.0
+              anklex_left: 0.0
