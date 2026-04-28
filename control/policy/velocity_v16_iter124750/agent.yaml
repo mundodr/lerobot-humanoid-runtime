@@ -1,0 +1,55 @@
+seed: 42
+device: cuda:0
+num_steps_per_env: 24
+max_iterations: 200000
+empirical_normalization: false
+policy:
+  class_name: ActorCritic
+  init_noise_std: 1.0
+  noise_std_type: scalar
+  actor_hidden_dims:
+  - 256
+  - 256
+  - 128
+  critic_hidden_dims:
+  - 512
+  - 256
+  - 128
+  activation: elu
+algorithm:
+  class_name: PPO
+  num_learning_epochs: 5
+  num_mini_batches: 4
+  learning_rate: 0.001
+  schedule: adaptive
+  gamma: 0.99
+  lam: 0.95
+  entropy_coef: 0.005
+  desired_kl: 0.01
+  max_grad_norm: 1.0
+  value_loss_coef: 1.0
+  use_clipped_value_loss: true
+  clip_param: 0.2
+  normalize_advantage_per_mini_batch: false
+  symmetry_cfg: null
+  rnd_cfg: null
+  critic_warmup_steps: 0
+  l2c2_cfg: null
+  reward_normalization_cfg: null
+clip_actions: null
+enable_entropy_coef_annealing: true
+entropy_coef_annealing_start_progress: 0.3
+enable_entropy_coef_annealing_success_rate: 0.8
+entropy_annealing_decay_rate: 0.9995
+save_interval: 250
+experiment_name: velocity_lerobot_no_arms
+run_name: velocity_lerobot_no_arms
+logger: wandb
+neptune_project: Velocity-LeRobot-NoArms
+wandb_project: Velocity-LeRobot-NoArms
+resume: true
+load_run: 2026-04-22_17-22-38_velocity_lerobot_no_arms
+load_checkpoint: model_118000.pt
+enable_evaluation: false
+start_eval_iter: 1000
+load_optimizer: true

@@ -21,7 +21,7 @@ imu = IMU(sensor="bno055", i2c_bus=1, address=0x28, rate_hz=100.0, frame_yaw_deg
 
 robot = BipedalRobotController(control_hz=100.0, imu=imu)
 robot.attach_default_meshcat()   # optional
-robot.set_max_command_delta(60.0)
+robot.set_max_command_delta(80.0)
 
 robot.start(mode="state_only", auto_enable=False)
 
