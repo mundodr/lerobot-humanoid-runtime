@@ -147,8 +147,19 @@ class SimBipedalRobotController:
 
         self.model = mujoco.MjModel.from_xml_path(str(self.mjcf_path))
         self.data = mujoco.MjData(self.model)
-        self.model.opt.timestep = float(sim_dt)
+
         # Keep local MuJoCo options aligned with control/policy/<name>/config.yaml.
+        self.model.opt.timestep = float(sim_dt)
+        self.model.opt.gravity[:] = (0.0, 0.0, -9.81)
+        self.model.opt.integrator = mujoco.mjtIntegrator.mjINT_IMPLICITFAST
+        self.model.opt.solver = mujoco.mjtSolver.mjSOL_NEWTON
+        self.model.opt.cone = mujoco.mjtCone.mjCONE_PYRAMIDAL
+        self.model.opt.jacobian = mujoco.mjtJacobian.mjJAC_AUTO
+        self.model.opt.iterations = 10
+        self.model.opt.ls_iterations = 20
+        self.model.opt.ls_tolerance = 0.01
+        self.model.opt.impratio = 1.0
+        self.model.opt.tolerance = 1e-8
         self.model.opt.ccd_iterations = 50
 
         self.control_hz = float(control_hz)

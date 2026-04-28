@@ -88,15 +88,15 @@ pad.start()
 
 agent = RLAgent.from_files(
     robot,
-    config_path="control/policy/codex_iteration_3/config.yaml",
-    policy_path="control/policy/codex_iteration_3/policy.onnx", #2026-03-04_17-28-46.onnx",
-    log_path="control/policy/codex_iteration_3/debug_ctrl5.csv",
+    config_path="control/policy/codex_iteration_history/config.yaml",
+    policy_path="control/policy/codex_iteration_history/policy.onnx", #2026-03-04_17-28-46.onnx",
+    log_path="control/policy/codex_iteration_history/debug_ctrl_sim.csv",
     log_observation=True,
     log_action=True,
     log_every_n=1,
 )
 
-agent.spec.joint_vel_source = "finite_difference"  # or "robot_state_estimation"
+agent.spec.joint_vel_source = "finite_diff"  # use explicit finite-diff mode
 
 # manual global scaling remains available
 agent.spec.action_scale = 0.

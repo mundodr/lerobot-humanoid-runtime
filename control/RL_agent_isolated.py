@@ -59,7 +59,8 @@ class AgentSpec:
     action_scales_rad: List[float] = field(default_factory=list)
     encoder_bias_rad: List[float] = field(default_factory=list)
     obs_term_scales: Dict[str, float] = field(default_factory=dict)
-    joint_vel_source: str = "auto"  # auto | finite_diff
+    obs_term_history_len: Dict[str, int] = field(default_factory=dict)
+    joint_vel_source: str = "auto"  # auto | finite_diff | true_value
     debug_zero_actions_obs: bool = False
 
 
@@ -281,6 +282,33 @@ def _extract_observation_term_scales(cfg: Dict[str, Any], policy_terms: List[str
     return out
 
 
+def _extract_observation_term_history_lengths(cfg: Dict[str, Any], policy_terms: List[str]) -> Dict[str, int]:
+    terms_cfg = _get_first(
+        cfg,
+        keys=(
+            "env_cfg.value.observations.policy.terms",
+            "env_cfg.observations.policy.terms",
+            "observations.policy.terms",
+        ),
+        default={},
+    )
+    out: Dict[str, int] = {str(term_name): 1 for term_name in policy_terms}
+    if not isinstance(terms_cfg, dict):
+        return out
+
+    for term_name in policy_terms:
+        term_cfg = terms_cfg.get(term_name)
+        if not isinstance(term_cfg, dict):
+            continue
+        raw = term_cfg.get("history_length", None)
+        try:
+            h = int(raw) if raw is not None else 0
+        except Exception:
+            h = 0
+        out[str(term_name)] = h if h > 0 else 1
+    return out
+
+
 def _extract_encoder_bias_rad(cfg: Dict[str, Any], action_keys: List[str]) -> List[float]:
     raw = _get_first(
         cfg,
@@ -392,9 +420,20 @@ def infer_agent_spec(cfg: Dict[str, Any]) -> AgentSpec:
     ).strip().lower()
     if joint_vel_source in ("fd", "finite_difference", "finite_differences"):
         joint_vel_source = "finite_diff"
+    if joint_vel_source in (
+        "true",
+        "true_value",
+        "raw",
+        "raw_value",
+        "raw_motor",
+        "measured",
+        "robot_state_estimation",
+        "snapshot_only",
+    ):
+        joint_vel_source = "true_value"
     if joint_vel_source in ("snapshot", "joint_state", "joint_state_fd_fallback"):
         joint_vel_source = "auto"
-    if joint_vel_source not in ("auto", "finite_diff"):
+    if joint_vel_source not in ("auto", "finite_diff", "true_value"):
         joint_vel_source = "auto"
 
     return AgentSpec(
@@ -406,6 +445,7 @@ def infer_agent_spec(cfg: Dict[str, Any]) -> AgentSpec:
         action_scales_rad=_extract_action_scales(cfg, action_keys),
         encoder_bias_rad=_extract_encoder_bias_rad(cfg, action_keys),
         obs_term_scales=_extract_observation_term_scales(cfg, policy_terms),
+        obs_term_history_len=_extract_observation_term_history_lengths(cfg, policy_terms),
         joint_vel_source=joint_vel_source,
     )
 
@@ -573,10 +613,23 @@ class RLAgent:
     _log_writer: Optional[Any] = field(default=None, init=False)
     _log_step_idx: int = field(default=0, init=False)
     _hz_lock: threading.Lock = field(default_factory=threading.Lock, init=False)
+    _obs_now_parts: Dict[str, np.ndarray] = field(default_factory=dict, init=False)
+    _term_obs_history: Dict[str, deque] = field(default_factory=dict, init=False)
 
     def __post_init__(self) -> None:
         self.obs_history = deque(maxlen=int(self.spec.history_len))
         self._last_policy_action = np.zeros(len(self.spec.action_keys), dtype=np.float32)
+        self._init_term_history_buffers()
+
+    def _init_term_history_buffers(self) -> None:
+        self._term_obs_history = {}
+        for term_name in self.spec.policy_terms:
+            h = int(self.spec.obs_term_history_len.get(term_name, 1))
+            if h > 1:
+                self._term_obs_history[term_name] = deque(maxlen=h)
+
+    def _uses_term_history(self) -> bool:
+        return any(int(self.spec.obs_term_history_len.get(term_name, 1)) > 1 for term_name in self.spec.policy_terms)
 
     @classmethod
     def from_files(
@@ -697,6 +750,9 @@ class RLAgent:
         if self._thread is not None and self._thread.is_alive():
             return
         self.obs_history.clear()
+        for hist in self._term_obs_history.values():
+            hist.clear()
+        self._obs_now_parts.clear()
         self._prev_q_rad = None
         self._prev_q_t_s = None
         self._prev_obs_joint_pos = None
@@ -722,6 +778,7 @@ class RLAgent:
             "running": bool(self._running),
             "history_size": int(len(self.obs_history)),
             "history_len": int(self.spec.history_len),
+            "term_history_len": {k: int(v) for k, v in self.spec.obs_term_history_len.items()},
             "inference_hz": float(self.spec.inference_hz),
             "joint_vel_source": str(self.spec.joint_vel_source),
             "debug_zero_actions_obs": bool(self.spec.debug_zero_actions_obs),
@@ -810,6 +867,8 @@ class RLAgent:
                 return qpos_now
             if self.spec.joint_vel_source == "finite_diff":
                 qd_now = qd_fd.astype(np.float32, copy=False)
+            elif self.spec.joint_vel_source == "true_value":
+                qd_now = qd_snap.astype(np.float32, copy=False)
             else:
                 qd_now = (0.5 * qd_snap + 0.5 * qd_fd).astype(np.float32, copy=False)
             qd_now = self._apply_obs_term_scale(term_name, qd_now)
@@ -830,7 +889,12 @@ class RLAgent:
         self._curr_obs_joint_pos = None
         self._curr_obs_joint_vel = None
         self._curr_obs_joint_torque = None
-        parts = [self._term_observation_vector(snapshot, name) for name in self.spec.policy_terms]
+        self._obs_now_parts.clear()
+        parts: List[np.ndarray] = []
+        for name in self.spec.policy_terms:
+            vec = self._term_observation_vector(snapshot, name)
+            self._obs_now_parts[name] = vec
+            parts.append(vec)
         obs = np.concatenate(parts, axis=0).astype(np.float32, copy=False) if parts else np.zeros(0, dtype=np.float32)
 
         q_deg = self._policy_order_joint_state(snapshot, "joint_state_deg")
@@ -843,6 +907,30 @@ class RLAgent:
         if self._curr_obs_joint_torque is not None:
             self._prev_obs_joint_torque = self._curr_obs_joint_torque.copy()
         return obs
+
+    def _build_term_history_obs(self) -> np.ndarray:
+        parts: List[np.ndarray] = []
+        for term_name in self.spec.policy_terms:
+            vec = self._obs_now_parts.get(term_name)
+            if vec is None:
+                vec = np.zeros(0, dtype=np.float32)
+            h = int(self.spec.obs_term_history_len.get(term_name, 1))
+            if h <= 1:
+                parts.append(np.asarray(vec, dtype=np.float32).reshape(-1))
+                continue
+            hist = self._term_obs_history.get(term_name)
+            if hist is None:
+                hist = deque(maxlen=h)
+                self._term_obs_history[term_name] = hist
+            hist.append(np.asarray(vec, dtype=np.float32).reshape(-1))
+            if len(hist) < h:
+                first = hist[0]
+                while len(hist) < h:
+                    hist.appendleft(first.copy())
+            parts.append(np.concatenate(list(hist), axis=0).astype(np.float32, copy=False))
+        if not parts:
+            return np.zeros(0, dtype=np.float32)
+        return np.concatenate(parts, axis=0).astype(np.float32, copy=False)
 
     def _build_history_obs(self, obs_now: np.ndarray) -> np.ndarray:
         self.obs_history.append(obs_now)
@@ -903,7 +991,10 @@ class RLAgent:
                 self._refresh_command_from_source()
                 snapshot = self.robot.get_combined_state_snapshot(include_joint_state=True)
                 obs_now = self._build_obs_now(snapshot)
-                obs_hist = self._build_history_obs(obs_now)
+                if self._uses_term_history():
+                    obs_hist = self._build_term_history_obs()
+                else:
+                    obs_hist = self._build_history_obs(obs_now)
                 obs_in = self._adapt_obs_dim_for_policy(obs_hist)
                 action = self.policy.infer(obs_in)
                 self._last_obs = obs_in

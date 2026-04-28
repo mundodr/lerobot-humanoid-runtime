@@ -163,14 +163,14 @@ DEFAULT_GAINS = {
 # Values flagged as "-360" were wrap-corrected before being entered here.
 # -------------------------
 JOINT_LIMITS_DEG = {
-    1: (-209.123, -47.685),   # raw m1 minus 360
-    2: (-50.887, 50.934),    # raw m2 minus 360
+    1: (-210., -50.),   # raw m1 minus 360
+    2: (-50.0, 50.0),    # raw m2 minus 360
     3: (-168.065, 0),     # raw m3 minus 360
     4: (0.978, 112.172),      # raw m4
     5: (-89.753, 25.042),     # raw m5
     6: (-25.14, 285.830),    # raw m6
-    7: (64.894, 215.255),     # raw m7
-    8: (-55.311, 40.409),     # raw m8 minus 360
+    7: (50.0, 210.),     # raw m7
+    8: (-50.0, 50.0),     # raw m8 minus 360
     9: (-0.0, 162.438),     # raw m9
     10: (-98.105, -0.693),    # raw m10 minus 360
     11: (-25.50, 87.972),     # raw m11
