@@ -29,10 +29,16 @@ logs/
 
 # Local debug artifacts
 control/policy/**/debug*.csv
+bipedal_state_log*.csv
+control/policy/**/bipedal_state_log*.csv
+control/policy/**/runtime_debug_ctrl*.csv
+control/policy/**/action_scale_log*.csv
+control/policy/**/current_snapshot*.json
+control/policy/**/zero_snapshot*.json
 
 # Editor / OS junk
 *.swp
 *.swo
-*.bak
+*.bak*
 .DS_Store
 Thumbs.db
