@@ -60,8 +60,8 @@ def apply_base_gain_profile(robot: object) -> None:
 
     robot.set_joint_gains(2, kp=40.0, kd=3.0)   # type: ignore[attr-defined]
     robot.set_joint_gains(3, kp=6.0, kd=0.2)    # type: ignore[attr-defined]
-    robot.set_joint_gains(4, kp=6.0, kd=0.2)    # type: ignore[attr-defined]
-    robot.set_joint_gains(8, kp=40.0, kd=3.0)   # type: ignore[attr-defined]
+    robot.set_joint_gains(4, kp=12.0, kd=0.4)   # type: ignore[attr-defined]  # kp/kd x2 from 6/0.2 for knee tracking (2026-04-24)
+    robot.set_joint_gains(8, kp=40.0, kd=5.0)   # type: ignore[attr-defined]  # kd raised 3->5 for overshoot damping (2026-04-24, still in training distribution: damping x[0.8, 2.0])
     robot.set_joint_gains(9, kp=6.0, kd=0.2)    # type: ignore[attr-defined]
-    robot.set_joint_gains(10, kp=6.0, kd=0.2)   # type: ignore[attr-defined]
+    robot.set_joint_gains(10, kp=12.0, kd=0.4)  # type: ignore[attr-defined]  # kp/kd x2 from 6/0.2 for knee tracking (2026-04-24)
 

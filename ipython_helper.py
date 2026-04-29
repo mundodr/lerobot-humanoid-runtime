@@ -88,9 +88,9 @@ pad.start()
 
 agent = RLAgent.from_files(
     robot,
-    config_path="control/policy/codex_iteration_history/config.yaml",
-    policy_path="control/policy/codex_iteration_history/policy.onnx", #2026-03-04_17-28-46.onnx",
-    log_path="control/policy/codex_iteration_history/debug_ctrl_sim.csv",
+    config_path="control/policy/codex_iteration_7/config.yaml",
+    policy_path="control/policy/codex_iteration_7/policy.onnx", #2026-03-04_17-28-46.onnx",
+    log_path="control/policy/codex_iteration_7/debug_ctrl_real.csv",
     log_observation=True,
     log_action=True,
     log_every_n=1,
