@@ -1194,7 +1194,7 @@ class BipedalRobotController:
         """
         with self._state_lock:
             snapshot = {mid: st for mid, st in self.state.items()}
-        for mid in [1,2,3,4,7,8,9,10]: #HACK remove the ankle
+        for mid in MOTOR_IDS:
             st = snapshot[mid]
             if st.stamp <= 0.0:
                 continue

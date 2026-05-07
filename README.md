@@ -1,120 +1,252 @@
 # lerobot_humanoid_runtime
 
-Runtime stack for deploying RL locomotion policies on the 12-DOF bipedal humanoid (no arms), with both real-hardware and MuJoCo backends.
+Runtime and calibration stack for a 12-DOF bipedal humanoid (no arms), with:
+- simulation control (MuJoCo),
+- real robot control (CAN + IMU),
+- LeRobot integration controller.
 
-## Repository layout
+This repository is meant to be used by anyone building this robot. Calibration is mandatory before deployment.
 
-```text
-lerobot_humanoid_runtime/
-├── apps/
-│   └── gamepad_controller.py
-├── control/
-│   ├── RL_agent_isolated.py
-│   └── policy/
-├── hardware/
-│   ├── mit_codec.py
-│   └── robstride_toolkit.py
-├── imu/
-│   ├── IMU_integration.py
-│   ├── IMU_JY901.py
-│   └── IMU_BNO055
-├── robot/
-│   ├── bipedal_robot.py
-│   ├── root_constant.py
-│   ├── sim_robot.py
-│   └── lerobot-humanoid-model/models/bipedal_plateform_no_arms/
-├── logs/
-├── hip_imu_debug.py
-├── measure_actuator_delay.py
-├── replay_log.py
-├── launch_meshcat_browser.py
-├── mock_bus.py
-└── ipython_helper.py
+## Safety First
+
+This robot can hurt people and damage itself.
+
+- Always start in `state_only` and check state validity before enabling control.
+- Keep a clear physical area around the robot.
+- Keep a hardware-level power cutoff ready.
+- Do not disable controller safety checks.
+- If E-STOP triggers, inspect the reason before retrying.
+
+## Supported Platform
+
+- Raspberry Pi 5
+- Ubuntu
+- Python 3.13 recommended (minimum 3.12 for current LeRobot versions)
+- `uv` for environment management
+
+## What Is In This Repo
+
+- `robot/sim_robot.py`: MuJoCo simulation controller.
+- `robot/bipedal_robot.py`: real robot controller (CAN MIT protocol + safety).
+- `control/RL_agent_isolated.py`: policy inference runner (ONNX/Torch).
+- `imu/IMU_integration.py`: IMU backends (`bno055`, `bno085`, `jy901`, `mock`).
+- `apps/gamepad_controller.py`: gamepad command source.
+- `lerobot_humanoid_lerobot_integration/`: LeRobot robot implementation for this humanoid.
+- `ipython_helper.py`: practical copy/paste snippets for sim/real operation.
+
+## Setup
+
+1. Clone and init submodules:
+```bash
+git clone <your-repo-url>
+cd lerobot_humanoid_runtime
+git submodule update --init --recursive
 ```
 
-## Import conventions
+2. Install dependencies with `uv`:
+```bash
+uv sync
+```
 
-Use package imports from repo root:
+3. Optional extras:
+```bash
+uv sync --extra sim
+uv sync --extra full
+```
 
-```python
-from robot.bipedal_robot import BipedalRobotController
+## Quick Smoke Test (Simulation)
+
+Use this to validate installation without hardware:
+
+```bash
+uv run python - <<'PY'
 from robot.sim_robot import SimBipedalRobotController
-from control.RL_agent_isolated import RLAgent
-from imu.IMU_integration import IMU
-from apps.gamepad_controller import GamepadController
+
+robot = SimBipedalRobotController(control_hz=200.0, fixed_base=False)
+robot.start(mode="control", auto_enable=True)
+robot.start_viewer()
+print("Simulation started. Close viewer / Ctrl+C to stop.")
+PY
 ```
 
-All internal imports were updated to this layout.
+## Real Robot Bring-Up
 
-## Core modules
+### Power and CAN sequence
 
-- `robot.bipedal_robot.BipedalRobotController`: real CAN controller.
-- `robot.sim_robot.SimBipedalRobotController`: MuJoCo simulator with the same control API.
-- `control.RL_agent_isolated.RLAgent`: policy runner (ONNX/Torch), observation assembly, action dispatch.
-- `imu.IMU_integration.IMU`: IMU backend selector (`bno085`, `bno055`, `jy901`, or mock).
-- `apps.gamepad_controller.GamepadController`: Linux gamepad command source.
+1. Power robot.
+2. Power Raspberry Pi.
+3. Bring up CAN if not auto-started:
+```bash
+sudo ip link set can0 up type can bitrate 1000000 dbitrate 5000000 fd on
+sudo ip link set can1 up type can bitrate 1000000 dbitrate 5000000 fd on
+```
+4. Optionally start MeshCat server (if your setup requires separate server):
+```bash
+meshcat-server
+```
 
-## Policies
+### Recommended staged runner
 
-Policies are stored in `control/policy/<policy_name>/` with:
+The staged runner enforces pause points:
 
-- `policy.onnx`
-- `config.yaml` (or another config file the agent loader can parse)
-- `gain.md`
+```bash
+uv run python deploy/run_real_policy_sequential.py --policy-dir control/policy/tao_iteration
+```
+
+Stages:
+1. Create robot in `state_only`.
+2. Check MeshCat / limits / IMU.
+3. Switch to `control`, enable motors, send zero pose.
+4. Apply gains and start policy.
+
+### IPython workflow (from `ipython_helper.py`)
+
+Use `uv run ipython`, then paste the snippets in [`ipython_helper.py`](/home/virgile/devel/lerobot_humanoid_runtime/ipython_helper.py).
+
+Key flow:
+1. Create IMU + `BipedalRobotController`.
+2. `robot.start(mode="state_only", auto_enable=False)`.
+3. Validate MeshCat and orientation.
+4. `robot.set_mode("control")`, `robot.enable_all()`.
+5. Start `RLAgent`.
+
+## LeRobot Integration Mode
+
+In-repo integration module:
+- [`lerobot_humanoid_lerobot_integration/lerobot_humanoid.py`](/home/virgile/devel/lerobot_humanoid_runtime/lerobot_humanoid_lerobot_integration/lerobot_humanoid.py)
+- [`lerobot_humanoid_lerobot_integration/config_lerobot_humanoid.py`](/home/virgile/devel/lerobot_humanoid_runtime/lerobot_humanoid_lerobot_integration/config_lerobot_humanoid.py)
+
+Minimal usage pattern:
+
+```python
+from lerobot_humanoid_lerobot_integration import LeRobotHumanoid, LeRobotHumanoidConfig
+
+cfg = LeRobotHumanoidConfig()
+robot = LeRobotHumanoid(cfg)
+robot.connect()
+
+obs = robot.get_observation()
+zero = {name: 0.0 for name in robot.action_features}
+robot.send_action(zero)
+```
+
+Important:
+- Start the robot near its reference posture.
+- Current LeRobot controller is less permissive than the classical controller.
+
+### Data Acquisition Script
+
+The identification data acquisition workflow is now included in this repo:
+- [`tools/data_acquisition.py`](/home/virgile/devel/lerobot_humanoid_runtime/tools/data_acquisition.py)
 
 Example:
 
-```python
-from control.RL_agent_isolated import RLAgent
-from robot.bipedal_robot import BipedalRobotController
-
-robot = BipedalRobotController(control_hz=100.0)
-agent = RLAgent.from_files(
-    robot,
-    config_path="control/policy/tao_iteration/config.yaml",
-    policy_path="control/policy/tao_iteration/policy.onnx",
-    log_path="logs/tao_iteration_debug_ctrl.csv",
-)
+```bash
+uv run python tools/data_acquisition.py \
+  --fps 100 \
+  --total-duration-s 5.0 \
+  --command-mode step \
+  --amplitudes-deg 0 -5 5 \
+  --experiment-name experiment_5s_A
 ```
 
-## Quick start helpers (IPython)
+## Calibration Guide (Mandatory)
 
-`ipython_helper.py` now provides minimal, maintained helpers:
+Goal: align internal robot state estimation with real hardware state.
 
-- `make_real_robot(...)`
-- `make_sim_robot(...)`
-- `make_gamepad(...)`
-- `make_rl_agent(...)`
-- `start_sim_policy_session(...)`
-- `start_real_policy_session(...)`
-- `stop_session(...)`
+Detailed step-by-step guide:
+- [`CALIBRATION.md`](/home/virgile/devel/lerobot_humanoid_runtime/CALIBRATION.md)
 
-Example:
+### 1) Verify wiring and motor IDs
 
-```python
-from ipython_helper import start_sim_policy_session, stop_session
+- Confirm all 12 motors respond on expected bus:
+  - `can0`: IDs 1..6
+  - `can1`: IDs 7..12
+- If one side looks mirrored or swapped in visualization, check wiring first.
 
-robot, pad, agent = start_sim_policy_session(policy_name="tao_iteration")
-# ...
-stop_session(robot=robot, gamepad=pad, agent=agent)
-```
+### 2) Start in read-only mode
 
-## Logs and generated files
+- Use `state_only` mode first.
+- Inspect joint states in MeshCat before enabling torque.
 
-- Runtime traces and debug CSVs should go in `logs/`.
-- Generated caches (`__pycache__/`) are not part of source and can be deleted safely.
+### 3) Validate signs and offsets
 
-## Naming cleanup suggestions (non-breaking plan)
+Primary calibration tables:
+- [`robot/root_constant.py`](/home/virgile/devel/lerobot_humanoid_runtime/robot/root_constant.py)
+  - `MOTOR_SIGN`
+  - `MOTOR_OFFSET_DEG`
+  - `JOINT_LIMITS_DEG`
+- LeRobot-side constants in [`lerobot_humanoid_lerobot_integration/lerobot_humanoid.py`](/home/virgile/devel/lerobot_humanoid_runtime/lerobot_humanoid_lerobot_integration/lerobot_humanoid.py)
 
-Current names kept for compatibility (especially model/policy artifacts), but recommended future migration:
+If estimated pose does not match real pose, this is usually wiring/sign/offset mismatch.
 
-1. `robot/bipdeal_config.py` -> `robot/bipedal_config_legacy.py`
-2. `robot/lerobot-humanoid-model/models/bipedal_plateform_no_arms` -> `robot/lerobot-humanoid-model/models/bipedal_platform_no_arms`
-3. `control/policy/less_noice_*` -> `control/policy/less_noise_*`
+### 4) Enable control only after checks
 
-If you migrate these names, do it in one commit with a global path update and keep temporary compatibility aliases.
+- Switch to `control`.
+- Enable motors.
+- Send zero pose.
+- Command very small joint motion and verify correct direction.
 
-## Notes
+### 5) Keep safety constraints active
 
-- `robot/root_constant.py` now resolves model paths from `robot/lerobot-humanoid-model/models/bipedal_plateform_no_arms/...`.
-- `robot/sim_robot.py` now uses the SB model scene at `robot/lerobot-humanoid-model/models/bipedal_plateform_no_arms/mjcf/scene.xml`.
+Do not remove:
+- state bounds checks,
+- command jump guards,
+- ankle guards,
+- E-STOP logic.
+
+## Policy Directory Layout
+
+Each policy directory under `control/policy/<name>/` should contain:
+- `policy.onnx` (required),
+- one config file among:
+  - `config.yaml`
+  - `config.yml`
+  - `model_25000_env.yaml`
+  - `config.json`
+
+## Logging and Debugging
+
+- Robot controller and RL agent can both produce CSV logs.
+- Common log locations:
+  - policy folder debug CSV (`--log-name`, `--log-path`),
+  - custom paths passed to `RLAgent.from_files(...)`.
+
+Use logs to inspect:
+- command vs observed joints,
+- control loop timing,
+- E-STOP events.
+
+## Common Failures
+
+1. Internal state does not match real pose.
+   - Usually wiring/sign/offset mismatch.
+   - Re-check CAN routing and calibration tables.
+
+2. No motor feedback.
+   - CAN interfaces not up.
+   - Bring up `can0` / `can1` and retry.
+
+3. E-STOP triggers at startup.
+   - Robot out of safe bounds or ankle guard violation.
+   - Place robot closer to neutral and retry in `state_only`.
+
+4. MeshCat not updating.
+   - Missing visualization dependencies or server not reachable.
+   - Check `meshcat` install and `tcp://127.0.0.1:6000` path.
+
+5. LeRobot startup inconsistency vs classical controller.
+   - See known limitation below.
+
+## Known Limitation and Pending Fix
+
+There is currently a startup mismatch between:
+- `robot/bipedal_robot.py` (classical controller),
+- `lerobot_humanoid_lerobot_integration/lerobot_humanoid.py` (LeRobot controller).
+
+Desired behavior: wait for response from all motors before enabling torque / applying startup offsets, matching the classical controller behavior.
+
+Until this is unified:
+- start LeRobot controller only from a safe, near-reference pose,
+- keep initial commands conservative,
+- verify state before any motion command.

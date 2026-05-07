@@ -1,0 +1,58 @@
+[project]
+name = "lerobot-humanoid-runtime"
+version = "0.1.0"
+description = "Runtime stack for LeRobot humanoid deployment (real + MuJoCo)."
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+  "lerobot[robstride]",
+  "lerobot-humanoid-models",
+  "numpy",
+  "python-can",
+  "PyYAML",
+  "onnxruntime",
+]
+
+[project.optional-dependencies]
+sim = [
+  "mujoco",
+  "mjlab",
+]
+policy = [
+  "torch",
+]
+imu = [
+  "pyserial",
+  "smbus2; sys_platform == 'linux'",
+  "adafruit-blinka; sys_platform == 'linux'",
+  "adafruit-circuitpython-bno08x; sys_platform == 'linux'",
+]
+gamepad = [
+  "evdev; sys_platform == 'linux'",
+]
+viz = [
+  "meshcat",
+  "pin; sys_platform == 'linux'",
+]
+tools = [
+  "matplotlib",
+  "scipy",
+]
+full = [
+  "mujoco",
+  "mjlab",
+  "torch",
+  "pyserial",
+  "smbus2; sys_platform == 'linux'",
+  "adafruit-blinka; sys_platform == 'linux'",
+  "adafruit-circuitpython-bno08x; sys_platform == 'linux'",
+  "evdev; sys_platform == 'linux'",
+  "meshcat",
+  "pin; sys_platform == 'linux'",
+  "matplotlib",
+  "scipy",
+]
+
+[tool.uv.sources]
+lerobot = { path = "lerobot", editable = true }
+lerobot-humanoid-models = { path = "robot/lerobot-humanoid-model", editable = true }
