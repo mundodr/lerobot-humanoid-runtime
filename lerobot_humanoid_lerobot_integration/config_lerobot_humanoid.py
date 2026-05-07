@@ -2,7 +2,8 @@
 
 from dataclasses import dataclass, field
 
-from ..config import RobotConfig
+from lerobot.robots import RobotConfig
+
 
 
 @RobotConfig.register_subclass("lerobot_humanoid")

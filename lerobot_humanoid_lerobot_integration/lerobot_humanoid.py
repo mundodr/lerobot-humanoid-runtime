@@ -12,12 +12,12 @@ from typing import Any
 import math
 
 from lerobot.motors import Motor, MotorNormMode
-from lerobot.motors.robstride import RobstrideMockBus, RobstrideMotorsBus
+from lerobot.motors.robstride import RobstrideMotorsBus
 from lerobot.motors.robstride.tables import MOTOR_LIMIT_PARAMS, MotorType
 from lerobot.processor import RobotAction, RobotObservation
 from lerobot.utils.decorators import check_if_already_connected, check_if_not_connected
 
-from ..robot import Robot
+from lerobot.robots import Robot
 from .config_lerobot_humanoid import LeRobotHumanoidConfig
 
 logger = logging.getLogger(__name__)
