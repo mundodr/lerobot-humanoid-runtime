@@ -23,7 +23,7 @@ class LeRobotHumanoidConfig(RobotConfig):
     can_data_bitrate: int = 5_000_000
     handshake: bool = True
 
-    # Use local robots.mock_bus.MockBus instead of real CAN hardware.
+    # Use local `robstride_mock_bus.RobstrideMockBus` instead of real CAN hardware.
     use_mock_bus: bool = False
     mock_bus_default_temp_c: float = 30.0
     mock_bus_send_sleep_s: float = 0.0
@@ -31,6 +31,12 @@ class LeRobotHumanoidConfig(RobotConfig):
     # Background control loop
     control_hz: float = 100.0
     auto_enable_control: bool = True
+
+    # Startup handshake safety: require one state sample from every motor
+    # before running startup wrap correction and before latching hold targets.
+    startup_wait_all_motors: bool = True
+    startup_wait_all_motors_timeout_s: float = 5.0
+    startup_wait_all_motors_poll_s: float = 0.02
 
     # Torque behavior
     enable_torque_on_connect: bool = True

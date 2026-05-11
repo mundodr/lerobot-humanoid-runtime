@@ -104,9 +104,12 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--joint-vel-source", type=str, default="auto")
     p.add_argument("--max-command-delta-deg", type=float, default=60.0)
     p.add_argument("--viz-hz", type=float, default=20.0)
+    p.add_argument("--use-mock-bus", action=argparse.BooleanOptionalAction, default=False)
+    p.add_argument("--mock-default-temp-c", type=float, default=30.0)
+    p.add_argument("--mock-send-sleep-s", type=float, default=0.0)
 
     p.add_argument("--with-imu", action=argparse.BooleanOptionalAction, default=True)
-    p.add_argument("--imu-sensor", type=str, default="bno055", choices=("bno055", "jy901", "bno085"))
+    p.add_argument("--imu-sensor", type=str, default="bno055", choices=("bno055", "jy901", "bno085", "mock"))
     p.add_argument("--i2c-bus", type=int, default=1)
     p.add_argument("--imu-address", type=lambda x: int(x, 0), default=0x28)
     p.add_argument("--frame-yaw-deg", type=float, default=-180.0)
@@ -151,6 +154,8 @@ def build_imu(args: argparse.Namespace) -> Any | None:
         return None
     from imu.IMU_integration import IMU
 
+    if args.imu_sensor == "mock":
+        return IMU(sensor="mock")
     if args.imu_sensor == "bno055":
         return IMU(
             sensor="bno055",
@@ -183,10 +188,58 @@ def create_gamepad(args: argparse.Namespace) -> Any:
     return pad
 
 
+def build_mock_buses(args: argparse.Namespace) -> tuple[Any, Any]:
+    from lerobot.motors import Motor, MotorNormMode
+    from lerobot_humanoid_lerobot_integration.lerobot_humanoid import HUMANOID_MOTOR_TYPE_BY_ID
+    from lerobot_humanoid_lerobot_integration.robstride_mock_bus import RobstrideMockBus
+    from robot.root_constant import CAN0_MOTOR_IDS, CAN1_MOTOR_IDS, JOINT_LIMITS_DEG
+
+    def _build_motors(ids: tuple[int, ...]) -> dict[str, Motor]:
+        out: dict[str, Motor] = {}
+        for mid in ids:
+            out[f"m{mid}"] = Motor(
+                id=int(mid),
+                model="robstride",
+                norm_mode=MotorNormMode.DEGREES,
+                motor_type_str=str(HUMANOID_MOTOR_TYPE_BY_ID.get(int(mid), "o0")),
+                recv_id=int(mid),
+            )
+        return out
+
+    # Start each mock motor in the middle of its configured raw limit range so
+    # controller-side state guards pass on startup.
+    initial_position_deg_by_motor_id = {
+        int(mid): 0.5 * (float(lim[0]) + float(lim[1])) for mid, lim in JOINT_LIMITS_DEG.items()
+    }
+    # Coupled ankles should start with equal motor values to keep pitch near 0.
+    for a, b in ((5, 6), (11, 12)):
+        lim_a = JOINT_LIMITS_DEG[int(a)]
+        lim_b = JOINT_LIMITS_DEG[int(b)]
+        lo = max(float(lim_a[0]), float(lim_b[0]))
+        hi = min(float(lim_a[1]), float(lim_b[1]))
+        shared = 0.0 if lo > hi else 0.5 * (lo + hi)
+        initial_position_deg_by_motor_id[int(a)] = shared
+        initial_position_deg_by_motor_id[int(b)] = shared
+
+    bus_can0 = RobstrideMockBus(
+        motors=_build_motors(CAN0_MOTOR_IDS),
+        default_temp_c=float(args.mock_default_temp_c),
+        send_sleep_s=float(args.mock_send_sleep_s),
+        initial_position_deg_by_motor_id=initial_position_deg_by_motor_id,
+    )
+    bus_can1 = RobstrideMockBus(
+        motors=_build_motors(CAN1_MOTOR_IDS),
+        default_temp_c=float(args.mock_default_temp_c),
+        send_sleep_s=float(args.mock_send_sleep_s),
+        initial_position_deg_by_motor_id=initial_position_deg_by_motor_id,
+    )
+    return bus_can0, bus_can1
+
+
 def main() -> int:
     args = parse_args()
     config_path, policy_path = resolve_policy_files(Path(args.policy_dir))
-    from control.RL_agent_isolated import RLAgent
+    from control.rl_agent import RLAgent
     from robot.bipedal_robot import BipedalRobotController
 
     robot = None
@@ -196,7 +249,17 @@ def main() -> int:
 
     try:
         print("[stage] 1/4 create robot in state_only", flush=True)
-        robot = BipedalRobotController(control_hz=float(args.control_hz), imu=build_imu(args))
+        mock_bus_can0 = None
+        mock_bus_can1 = None
+        if args.use_mock_bus:
+            print("[stage] using mock CAN buses (no hardware CAN access)", flush=True)
+            mock_bus_can0, mock_bus_can1 = build_mock_buses(args)
+        robot = BipedalRobotController(
+            control_hz=float(args.control_hz),
+            imu=build_imu(args),
+            bus_can0=mock_bus_can0,
+            bus_can1=mock_bus_can1,
+        )
         if args.with_meshcat:
             robot.attach_default_meshcat()
             robot._viz_hz = float(args.viz_hz)

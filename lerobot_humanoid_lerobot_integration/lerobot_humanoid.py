@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import importlib
 import logging
 import threading
 import time
@@ -19,6 +18,7 @@ from lerobot.utils.decorators import check_if_already_connected, check_if_not_co
 
 from lerobot.robots import Robot
 from .config_lerobot_humanoid import LeRobotHumanoidConfig
+from .robstride_mock_bus import RobstrideMockBus
 
 logger = logging.getLogger(__name__)
 
@@ -233,9 +233,10 @@ class LeRobotHumanoid(Robot):
             return
 
         try:
-            # Direct integration: use BNO055 implementation without IMU wrapper.
-            imu_module = importlib.import_module("IMU_BNO055")
-            BNO055IMU = getattr(imu_module, "BNO055IMU")
+            # Reuse the same extensionless BNO055 loader used by imu.IMU_integration.
+            from imu.IMU_integration import BNO055I2CIMU
+
+            BNO055IMU = BNO055I2CIMU._load_impl_class()
             self._imu_device = BNO055IMU(
                 i2c_bus=int(self.config.imu_bno055_i2c_bus),
                 address=int(self.config.imu_bno055_address),
@@ -344,42 +345,81 @@ class LeRobotHumanoid(Robot):
         with self._safety_lock:
             self._estop = False
             self._estop_reason = ""
-        if self.config.use_mock_bus:
+        try:
+            if self.config.use_mock_bus:
+                mock_positions_by_id = {
+                    int(mid): 0.5 * (float(lim[0]) + float(lim[1]))
+                    for mid, lim in self._joint_limits_deg.items()
+                }
+                # Keep coupled ankles in a safe mock startup pose:
+                # both motors of one ankle start equal so pitch/roll are near zero.
+                for ankle_cfg in (self._ankle_left_cfg, self._ankle_right_cfg):
+                    m_a, m_b = (int(ankle_cfg["motors"][0]), int(ankle_cfg["motors"][1]))
+                    lim_a = self._joint_limits_deg.get(m_a)
+                    lim_b = self._joint_limits_deg.get(m_b)
+                    if lim_a is None or lim_b is None:
+                        continue
+                    lo = max(float(lim_a[0]), float(lim_b[0]))
+                    hi = min(float(lim_a[1]), float(lim_b[1]))
+                    shared = 0.0 if lo > hi else 0.5 * (lo + hi)
+                    mock_positions_by_id[m_a] = shared
+                    mock_positions_by_id[m_b] = shared
+                for bus in self._buses:
+                    bus.canbus = RobstrideMockBus(
+                        motors=bus.motors,
+                        default_temp_c=float(self.config.mock_bus_default_temp_c),
+                        send_sleep_s=float(self.config.mock_bus_send_sleep_s),
+                        initial_position_deg_by_motor_id=mock_positions_by_id,
+                    )
+                    bus._is_connected = True
+                    if self.config.handshake:
+                        bus._handshake()
+            else:
+                for bus in self._buses:
+                    bus.connect(handshake=self.config.handshake)
+
+            self.configure()
+
+            if self.config.enable_torque_on_connect:
+                for bus in self._buses:
+                    bus.enable_torque()
+
+            self._start_imu_thread()
+
+            self._refresh_states_once()
+            self._wait_for_all_motor_states_on_startup()
+            if not self._startup_wrap_checked:
+                self._startup_wrap_checked = self._auto_correct_startup_wrap()
+            self._check_observed_state_safety()
+            self._check_ankle_configuration_guard()
+            with self._state_lock, self._action_lock:
+                for mid in self._motor_ids:
+                    self._desired_raw_positions[mid] = float(self._latest_states[mid]["position"])
+
+            self._stop_event.clear()
+            self._control_thread = threading.Thread(target=self._run_control_loop, daemon=True)
+            self._control_thread.start()
+            self._connected = True
+            logger.info("%s connected", self)
+        except Exception:
+            self._stop_event.set()
+            if self._control_thread is not None:
+                self._control_thread.join(timeout=1.0)
+            self._control_thread = None
+            self._stop_imu_thread()
+            if self.config.disable_torque_on_disconnect:
+                for bus in self._buses:
+                    try:
+                        bus.disable_torque()
+                    except Exception as e:
+                        logger.warning("Failed to disable torque during connect rollback: %s", e)
             for bus in self._buses:
-                bus.canbus = RobstrideMockBus(
-                    motors=bus.motors,
-                    default_temp_c=float(self.config.mock_bus_default_temp_c),
-                    send_sleep_s=float(self.config.mock_bus_send_sleep_s),
-                )
-                bus._is_connected = True
-                if self.config.handshake:
-                    bus._handshake()
-        else:
-            for bus in self._buses:
-                bus.connect(handshake=self.config.handshake)
-
-        self.configure()
-
-        if self.config.enable_torque_on_connect:
-            for bus in self._buses:
-                bus.enable_torque()
-
-        self._start_imu_thread()
-
-        self._refresh_states_once()
-        if not self._startup_wrap_checked:
-            self._startup_wrap_checked = self._auto_correct_startup_wrap()
-        self._check_observed_state_safety()
-        self._check_ankle_configuration_guard()
-        with self._state_lock, self._action_lock:
-            for mid in self._motor_ids:
-                self._desired_raw_positions[mid] = float(self._latest_states[mid]["position"])
-
-        self._stop_event.clear()
-        self._control_thread = threading.Thread(target=self._run_control_loop, daemon=True)
-        self._control_thread.start()
-        self._connected = True
-        logger.info("%s connected", self)
+                try:
+                    bus.disconnect(disable_torque=False)
+                except Exception:
+                    pass
+            self._connected = False
+            raise
 
     def configure(self) -> None:
         for bus in self._buses:
@@ -410,6 +450,32 @@ class LeRobotHumanoid(Robot):
         with self._state_lock:
             for mid, state in all_states.items():
                 self._latest_states[mid] = state
+
+    def _missing_startup_state_motor_ids(self) -> list[int]:
+        with self._state_lock:
+            return [mid for mid in self._motor_ids if float(self._latest_states[mid].get("stamp", 0.0)) <= 0.0]
+
+    def _wait_for_all_motor_states_on_startup(self) -> None:
+        if not self.config.startup_wait_all_motors:
+            return
+        timeout_s = max(0.0, float(self.config.startup_wait_all_motors_timeout_s))
+        poll_s = max(0.001, float(self.config.startup_wait_all_motors_poll_s))
+        t0 = time.monotonic()
+        missing = self._missing_startup_state_motor_ids()
+        if not missing:
+            return
+        logger.warning("Waiting for startup state from motors: %s", ",".join(str(mid) for mid in missing))
+        while missing:
+            elapsed_s = time.monotonic() - t0
+            if elapsed_s >= timeout_s:
+                missing_txt = ", ".join(str(mid) for mid in missing)
+                raise RuntimeError(
+                    f"Startup aborted: missing initial state from motors [{missing_txt}] "
+                    f"after {elapsed_s:.2f}s"
+                )
+            time.sleep(min(poll_s, max(0.0, timeout_s - elapsed_s)))
+            self._refresh_states_once()
+            missing = self._missing_startup_state_motor_ids()
 
     def _run_control_loop(self) -> None:
         period = 1.0 / max(1.0, float(self.config.control_hz))

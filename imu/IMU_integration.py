@@ -476,7 +476,7 @@ class MockIMU:
 class IMU:
     """
     Parent IMU selector used by LeRobot.
-    - sensor: "bno085", "bno055", or "jy901"
+    - sensor: "bno085", "bno055", "jy901", or "mock"
     - mock=True forces mock values regardless of selected sensor
     """
 
@@ -489,6 +489,11 @@ class IMU:
         self._build_sensor_backend()
 
     def _build_sensor_backend(self) -> None:
+        if self.mock or self.sensor == "mock":
+            # Mock mode intentionally bypasses hardware backends.
+            self.mock = True
+            self._sensor_backend = None
+            return
         if self.sensor == "bno085":
             address = int(self._sensor_kwargs.get("address", 0x4A))
             reports = tuple(self._sensor_kwargs.get("reports", DEFAULT_BNO085_REPORTS))
@@ -518,7 +523,7 @@ class IMU:
                 frame_yaw_deg=float(self._sensor_kwargs.get("frame_yaw_deg", 0.0)),
             )
             return
-        raise ValueError("Unsupported IMU sensor. Use 'bno085', 'bno055', or 'jy901'.")
+        raise ValueError("Unsupported IMU sensor. Use 'bno085', 'bno055', 'jy901', or 'mock'.")
 
     def use_sensor(self, sensor: str, **sensor_kwargs: Any) -> None:
         self.stop()
