@@ -159,7 +159,7 @@ DEFAULT_GAINS = {
 
 # -------------------------
 # Safety limits (deg)
-# Updated from first raw limit scan in bipdeal_config.py comments.
+# Updated from first raw limit scan notes.
 # Values flagged as "-360" were wrap-corrected before being entered here.
 # -------------------------
 JOINT_LIMITS_DEG = {

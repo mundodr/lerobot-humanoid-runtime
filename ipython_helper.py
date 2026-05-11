@@ -12,7 +12,7 @@ robot.start_viewer()
 ### Creation of a real robot controller, IMU, and RL agent, and connection to gamepad
 
 from apps.gamepad_controller import GamepadController
-from control.RL_agent_isolated import RLAgent
+from control.rl_agent import RLAgent
 from robot.bipedal_robot import BipedalRobotController
 from imu.IMU_integration import IMU
 

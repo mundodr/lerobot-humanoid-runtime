@@ -657,7 +657,7 @@ class RLAgent:
         agent = cls(robot=robot, spec=spec, policy=policy)
         agent._default_joint_pos_rad = q_ref[:12].astype(np.float32, copy=True)
         if log_observation or log_action:
-            resolved_log_path = Path(log_path) if log_path else Path("rl_agent_isolated_debug_log.csv")
+            resolved_log_path = Path(log_path) if log_path else Path("rl_agent_debug_log.csv")
             agent.configure_logging(
                 log_path=resolved_log_path,
                 log_observation=log_observation,
@@ -1002,7 +1002,7 @@ class RLAgent:
                 self._maybe_log_step(obs_in, action)
                 self._apply_action(action)
             except Exception as exc:
-                print(f"[RLAgentIsolated][WARN] loop exception: {type(exc).__name__}: {exc}")
+                print(f"[RLAgent][WARN] loop exception: {type(exc).__name__}: {exc}")
 
             period = 1.0 / self.get_inference_hz()
             next_tick += period
