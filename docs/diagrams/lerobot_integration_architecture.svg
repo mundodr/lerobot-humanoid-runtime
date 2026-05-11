@@ -1,0 +1,115 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1800" height="1000" viewBox="0 0 1800 1000">
+  <defs>
+    <style>
+      .title { font: 700 32px 'DejaVu Sans', sans-serif; fill: #102a43; }
+      .box-title { font: 700 24px 'DejaVu Sans', sans-serif; fill: #0b1f33; }
+      .box-text { font: 400 17px 'DejaVu Sans Mono', monospace; fill: #243b53; }
+      .edge-label {
+        font: 600 16px 'DejaVu Sans', sans-serif;
+        fill: #334e68;
+        stroke: #ffffff;
+        stroke-width: 6px;
+        paint-order: stroke fill;
+      }
+      .node { fill: #f8fbff; stroke: #0f766e; stroke-width: 2.2; rx: 14; ry: 14; }
+      .node-accent { fill: #ecfeff; stroke: #0f766e; stroke-width: 2.2; rx: 14; ry: 14; }
+      .container { fill: #f0fdfa; stroke: #0f766e; stroke-width: 2.2; rx: 18; ry: 18; }
+      .edge { stroke: #0f766e; stroke-width: 2.2; fill: none; marker-end: url(#arrow); }
+      .edge-dashed { stroke: #0f766e; stroke-width: 2.2; fill: none; stroke-dasharray: 9 8; marker-end: url(#arrow); }
+    </style>
+    <marker id="arrow" markerWidth="11" markerHeight="11" refX="9" refY="5.5" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L10,5.5 L0,11 z" fill="#0f766e"/>
+    </marker>
+  </defs>
+
+  <rect x="0" y="0" width="1800" height="1000" fill="#ffffff"/>
+  <text x="50" y="58" class="title">LeRobot Runtime Path: LeRobotHumanoid &lt;-&gt; Physical Robot</text>
+
+  <rect class="node" x="80" y="100" width="350" height="140"/>
+  <text x="104" y="138" class="box-title">RobotConfig (LeRobot)</text>
+  <text x="104" y="176" class="box-text">base config API</text>
+
+  <rect class="node" x="500" y="100" width="350" height="140"/>
+  <text x="524" y="138" class="box-title">Robot (LeRobot)</text>
+  <text x="524" y="176" class="box-text">base robot interface</text>
+
+  <rect class="node-accent" x="80" y="300" width="520" height="250"/>
+  <text x="106" y="338" class="box-title">LeRobotHumanoidConfig</text>
+  <text x="106" y="376" class="box-text">can ports, hz, gains, limits</text>
+  <text x="106" y="404" class="box-text">max_command_delta_deg</text>
+  <text x="106" y="432" class="box-text">ankle guard / margins / IMU config</text>
+  <text x="106" y="460" class="box-text">mock bus options</text>
+
+  <rect class="node-accent" x="680" y="250" width="600" height="370"/>
+  <text x="708" y="288" class="box-title">LeRobotHumanoid</text>
+  <text x="708" y="326" class="box-text">+ connect() / disconnect()</text>
+  <text x="708" y="354" class="box-text">+ configure()</text>
+  <text x="708" y="382" class="box-text">+ get_observation()</text>
+  <text x="708" y="410" class="box-text">+ send_action(action)</text>
+  <text x="708" y="438" class="box-text">+ clear_estop() / get_estop_reason()</text>
+  <text x="708" y="466" class="box-text">threads: _run_control_loop, _imu_loop</text>
+  <text x="708" y="494" class="box-text">safety: bounds, jump guard, ankle guard</text>
+  <text x="708" y="522" class="box-text">maps joint-space &lt;-&gt; raw motor-space</text>
+  <text x="708" y="550" class="box-text">dual CAN batch MIT control</text>
+  <text x="708" y="586" class="box-text">contains: desired targets + state cache</text>
+
+  <rect class="container" x="1320" y="190" width="430" height="560"/>
+  <text x="1348" y="228" class="box-title">PhysicalRobot</text>
+
+  <rect class="node" x="1350" y="260" width="370" height="190"/>
+  <text x="1376" y="298" class="box-title">BusCAN (RobstrideMotorsBus)</text>
+  <text x="1376" y="336" class="box-text">connect / disconnect</text>
+  <text x="1376" y="364" class="box-text">sync_read_all_states()</text>
+  <text x="1376" y="392" class="box-text">_mit_control_batch(...)</text>
+  <text x="1376" y="420" class="box-text">can0 + can1</text>
+
+  <rect class="node" x="1350" y="490" width="175" height="190"/>
+  <text x="1372" y="528" class="box-title">Motor</text>
+  <text x="1372" y="566" class="box-text">id / type</text>
+  <text x="1372" y="594" class="box-text">norm mode</text>
+  <text x="1372" y="622" class="box-text">recv id</text>
+
+  <rect class="node" x="1545" y="490" width="175" height="190"/>
+  <text x="1567" y="528" class="box-title">IMU</text>
+  <text x="1567" y="566" class="box-text">BNO055</text>
+  <text x="1567" y="594" class="box-text">backend</text>
+  <text x="1567" y="622" class="box-text">obs stream</text>
+
+  <rect class="node" x="680" y="690" width="280" height="130"/>
+  <text x="706" y="728" class="box-title">RobotAction</text>
+  <text x="706" y="766" class="box-text">lerobot.processor type</text>
+
+  <rect class="node" x="1000" y="690" width="280" height="130"/>
+  <text x="1026" y="728" class="box-title">RobotObservation</text>
+  <text x="1026" y="766" class="box-text">lerobot.processor type</text>
+
+  <path class="edge" d="M430,170 C470,170 470,170 500,170"/>
+  <text x="442" y="154" class="edge-label">inherits API</text>
+
+  <path class="edge" d="M255,240 C255,262 255,280 255,300"/>
+  <text x="270" y="278" class="edge-label">extends</text>
+
+  <path class="edge" d="M675,170 C920,170 920,220 920,250"/>
+  <text x="810" y="192" class="edge-label">implements</text>
+
+  <path class="edge" d="M600,420 C640,420 650,420 680,420"/>
+  <text x="610" y="404" class="edge-label">composed in</text>
+
+  <path class="edge" d="M1280,390 C1300,390 1308,390 1320,390"/>
+  <text x="1240" y="374" class="edge-label">control / observe</text>
+
+  <path class="edge" d="M1535,450 C1535,468 1535,478 1535,490"/>
+  <text x="1550" y="474" class="edge-label">contains</text>
+
+  <path class="edge" d="M1545,450 C1608,468 1632,478 1632,490"/>
+  <text x="1618" y="470" class="edge-label">contains</text>
+
+  <path class="edge-dashed" d="M820,620 C820,648 820,668 820,690"/>
+  <text x="838" y="656" class="edge-label">send_action()</text>
+
+  <path class="edge-dashed" d="M1140,620 C1140,648 1140,668 1140,690"/>
+  <text x="1158" y="656" class="edge-label">get_observation()</text>
+
+  <text x="70" y="944" class="box-text">Flow: connect -> configure gains -> enable torque -> refresh states -> control loop + IMU loop.</text>
+  <text x="70" y="972" class="box-text">Safety gates before/while commanding: state bounds, jump guard, ankle guard, E-STOP.</text>
+</svg>

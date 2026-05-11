@@ -14,10 +14,10 @@ This guide covers:
 - acceptance criteria for go/no-go.
 
 Primary runtime controller used for calibration:
-- [`robot/bipedal_robot.py`](/home/virgile/devel/lerobot_humanoid_runtime/robot/bipedal_robot.py)
+- [`robot/bipedal_robot.py`](./robot/bipedal_robot.py)
 
 LeRobot integration uses the same physical robot assumptions and must be consistent with calibration outcomes:
-- [`lerobot_humanoid_lerobot_integration/lerobot_humanoid.py`](/home/virgile/devel/lerobot_humanoid_runtime/lerobot_humanoid_lerobot_integration/lerobot_humanoid.py)
+- [`lerobot_humanoid_lerobot_integration/lerobot_humanoid.py`](./lerobot_humanoid_lerobot_integration/lerobot_humanoid.py)
 
 ## 2. Safety Rules (Hard Requirements)
 
@@ -56,6 +56,103 @@ sudo ip link set can1 up type can bitrate 1000000 dbitrate 5000000 fd on
 meshcat-server
 ```
 
+## 4.1 Manual Zeroing (First Start / Re-zero)
+
+Use this section when you need to send motor zero commands (`CAN_CMD_ZERO`) after manually placing joints at known reference poses.
+
+Reference assets used below are stored in this repo:
+- `docs/calibration_assets/zero_refs/hipz_zeros1.jpg`
+- `docs/calibration_assets/zero_refs/hipz_zero2.jpg`
+- `docs/calibration_assets/zero_refs/hipx_zero.jpg`
+- `docs/calibration_assets/zero_refs/hipy_zero.jpg`
+- `docs/calibration_assets/zero_refs/knee_zero.jpg`
+- `docs/calibration_assets/zero_refs/ankle_zero2.jpg`
+- `docs/calibration_assets/zero_refs/ankle_calibration_tool.stl`
+
+### Setup
+
+Use `uv run ipython`, then:
+
+```python
+from imu.IMU_integration import IMU
+from robot.bipedal_robot import BipedalRobotController
+
+imu = IMU(sensor="bno055", i2c_bus=1, address=0x28, rate_hz=100.0, frame_yaw_deg=-180.0)
+robot = BipedalRobotController(control_hz=100.0, imu=imu)
+```
+
+Optional quick checks before zeroing:
+
+```bash
+ls -l /dev/ttyAMA0 /dev/serial0
+i2cdetect -y 1
+```
+
+### Joint-to-Motor IDs for zeroing
+
+- `hipz`: left `1`, right `7`
+- `hipx`: left `2`, right `8`
+- `hipy`: left `3`, right `9`
+- `knee`: left `4`, right `10`
+- `ankle`: left `5,6`, right `11,12`
+
+### Reference pictures
+
+#### hipz (two references)
+
+| hipz zero #1 | hipz zero #2 |
+|---|---|
+| ![hipz zero reference 1](docs/calibration_assets/zero_refs/hipz_zeros1.jpg) | ![hipz zero reference 2](docs/calibration_assets/zero_refs/hipz_zero2.jpg) |
+
+#### hipx
+
+| hipx zero |
+|---|
+| ![hipx zero reference](docs/calibration_assets/zero_refs/hipx_zero.jpg) |
+
+#### hipy
+
+| hipy zero |
+|---|
+| ![hipy zero reference](docs/calibration_assets/zero_refs/hipy_zero.jpg) |
+
+#### knee
+
+| knee zero |
+|---|
+| ![knee zero reference](docs/calibration_assets/zero_refs/knee_zero.jpg) |
+
+#### ankle (with printed calibration tool)
+
+1. Print the ankle calibration tool STL:
+   - `docs/calibration_assets/zero_refs/ankle_calibration_tool.stl`
+2. Install/use the tool as shown below to set the mechanical ankle reference before zeroing.
+
+| ankle zero with tool |
+|---|
+| ![ankle zero reference with printed tool](docs/calibration_assets/zero_refs/ankle_zero2.jpg) |
+
+### Zero command sequence
+
+After placing each joint to the matching reference picture, send zero command for the corresponding motor IDs:
+
+```python
+# hipz
+robot.set_zero(1); robot.set_zero(7)
+
+# hipx
+robot.set_zero(2); robot.set_zero(8)
+
+# hipy
+robot.set_zero(3); robot.set_zero(9)
+
+# knee
+robot.set_zero(4); robot.set_zero(10)
+
+# ankle (keep tool/reference alignment during both commands per side)
+robot.set_zero(5); robot.set_zero(6)
+robot.set_zero(11); robot.set_zero(12)
+```
 ## 5. Start in Read-Only Mode
 
 Use `uv run ipython`, then:
@@ -142,13 +239,13 @@ Acceptance:
 ## 8. Calibration Parameters and Where to Edit
 
 Primary calibration constants:
-- [`robot/root_constant.py`](/home/virgile/devel/lerobot_humanoid_runtime/robot/root_constant.py)
+- [`robot/root_constant.py`](./robot/root_constant.py)
   - `MOTOR_SIGN`
   - `MOTOR_OFFSET_DEG`
   - `JOINT_LIMITS_DEG`
 
 LeRobot integration constants:
-- [`lerobot_humanoid_lerobot_integration/lerobot_humanoid.py`](/home/virgile/devel/lerobot_humanoid_runtime/lerobot_humanoid_lerobot_integration/lerobot_humanoid.py)
+- [`lerobot_humanoid_lerobot_integration/lerobot_humanoid.py`](./lerobot_humanoid_lerobot_integration/lerobot_humanoid.py)
   - `HUMANOID_MOTOR_SIGN`
   - `HUMANOID_MOTOR_OFFSET_DEG`
   - `HUMANOID_ANKLE_COUPLING_CALIBRATION_*`

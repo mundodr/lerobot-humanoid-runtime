@@ -1,0 +1,110 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1800" height="1000" viewBox="0 0 1800 1000">
+  <defs>
+    <style>
+      .title { font: 700 32px 'DejaVu Sans', sans-serif; fill: #102a43; }
+      .box-title { font: 700 24px 'DejaVu Sans', sans-serif; fill: #0b1f33; }
+      .box-text { font: 400 17px 'DejaVu Sans Mono', monospace; fill: #243b53; }
+      .edge-label {
+        font: 600 16px 'DejaVu Sans', sans-serif;
+        fill: #334e68;
+        stroke: #ffffff;
+        stroke-width: 6px;
+        paint-order: stroke fill;
+      }
+      .node { fill: #f8fbff; stroke: #1f3c88; stroke-width: 2.2; rx: 14; ry: 14; }
+      .node-accent { fill: #eef5ff; stroke: #1f3c88; stroke-width: 2.2; rx: 14; ry: 14; }
+      .edge { stroke: #1f3c88; stroke-width: 2.2; fill: none; marker-end: url(#arrow); }
+      .edge-dashed { stroke: #1f3c88; stroke-width: 2.2; fill: none; stroke-dasharray: 9 8; marker-end: url(#arrow); }
+      .container { fill: #f4f7fb; stroke: #486581; stroke-width: 2.2; rx: 18; ry: 18; }
+    </style>
+    <marker id="arrow" markerWidth="11" markerHeight="11" refX="9" refY="5.5" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L10,5.5 L0,11 z" fill="#1f3c88"/>
+    </marker>
+  </defs>
+
+  <rect x="0" y="0" width="1800" height="1000" fill="#ffffff"/>
+  <text x="50" y="58" class="title">Classical Runtime Path: RLAgent &lt;-&gt; BipedalRobotController &lt;-&gt; Physical Robot</text>
+
+  <rect class="node-accent" x="60" y="120" width="560" height="430"/>
+  <text x="86" y="158" class="box-title">BipedalRobotController</text>
+  <text x="86" y="196" class="box-text">+ start(mode, auto_enable)</text>
+  <text x="86" y="224" class="box-text">+ stop(disable_motors)</text>
+  <text x="86" y="252" class="box-text">+ set_mode(mode)</text>
+  <text x="86" y="280" class="box-text">+ set_action(left, right, ...)</text>
+  <text x="86" y="308" class="box-text">+ request_state_once()</text>
+  <text x="86" y="336" class="box-text">+ get_combined_state_snapshot()</text>
+  <text x="86" y="364" class="box-text">+ set_joint_gains(...)</text>
+  <text x="86" y="392" class="box-text">+ enable_all() / disable_all()</text>
+  <text x="86" y="420" class="box-text">+ attach_default_meshcat()</text>
+  <text x="86" y="460" class="box-text">contains: MotorState cache</text>
+  <text x="86" y="488" class="box-text">contains: JointGains (per motor)</text>
+  <text x="86" y="516" class="box-text">contains: MotorCommand targets (per motor)</text>
+
+  <rect class="node-accent" x="760" y="140" width="460" height="330"/>
+  <text x="788" y="178" class="box-title">RLAgent</text>
+  <text x="788" y="216" class="box-text">+ from_files(robot, config, policy)</text>
+  <text x="788" y="244" class="box-text">+ set_command_twist(vx, vy, wz)</text>
+  <text x="788" y="272" class="box-text">+ set_command_source(source)</text>
+  <text x="788" y="300" class="box-text">+ start() / stop()</text>
+  <text x="788" y="328" class="box-text">+ configure_logging(...)</text>
+  <text x="788" y="356" class="box-text">loop: observe -&gt; infer -&gt; act</text>
+
+  <rect class="node" x="1280" y="80" width="470" height="170"/>
+  <text x="1308" y="118" class="box-title">PolicyWrapper</text>
+  <text x="1308" y="156" class="box-text">+ load(policy_path, cfg)</text>
+  <text x="1308" y="184" class="box-text">+ infer(obs): ndarray</text>
+  <text x="1308" y="212" class="box-text">ONNX / Torch / callable</text>
+
+  <rect class="node" x="1280" y="280" width="470" height="170"/>
+  <text x="1308" y="318" class="box-title">AgentSpec</text>
+  <text x="1308" y="356" class="box-text">action keys, policy terms, scales, history</text>
+  <text x="1308" y="384" class="box-text">inference_hz, joint_vel_source</text>
+
+  <rect class="node" x="760" y="520" width="460" height="180"/>
+  <text x="788" y="558" class="box-title">GamepadController (optional)</text>
+  <text x="788" y="596" class="box-text">+ connect()</text>
+  <text x="788" y="624" class="box-text">+ start() / stop()</text>
+  <text x="788" y="652" class="box-text">+ get_command_twist()</text>
+
+  <rect class="container" x="60" y="610" width="560" height="320"/>
+  <text x="86" y="650" class="box-title">PhysicalRobot</text>
+
+  <rect class="node" x="90" y="680" width="250" height="210"/>
+  <text x="114" y="718" class="box-title">BusCAN</text>
+  <text x="114" y="756" class="box-text">python-can</text>
+  <text x="114" y="784" class="box-text">can0</text>
+  <text x="114" y="812" class="box-text">can1</text>
+  <text x="114" y="840" class="box-text">motor command</text>
+  <text x="114" y="866" class="box-text">motor feedback</text>
+
+  <rect class="node" x="350" y="680" width="240" height="210"/>
+  <text x="374" y="718" class="box-title">IMU</text>
+  <text x="374" y="756" class="box-text">BNO085 / BNO055</text>
+  <text x="374" y="782" class="box-text">JY901 / mock</text>
+  <text x="374" y="808" class="box-text">orientation</text>
+  <text x="374" y="834" class="box-text">angular velocity</text>
+  <text x="374" y="860" class="box-text">linear acceleration</text>
+
+  <path class="edge" d="M1220,220 C1260,200 1265,180 1280,170"/>
+  <text x="1170" y="188" class="edge-label">uses</text>
+
+  <path class="edge" d="M1220,320 C1260,340 1265,350 1280,360"/>
+  <text x="1170" y="350" class="edge-label">uses</text>
+
+  <path class="edge-dashed" d="M990,520 C990,490 990,470 990,470"/>
+  <text x="1008" y="500" class="edge-label">command source</text>
+
+  <path class="edge" d="M620,350 C700,330 730,315 760,300"/>
+  <text x="636" y="322" class="edge-label">observations</text>
+
+  <path class="edge" d="M760,260 C700,270 680,290 620,315"/>
+  <text x="640" y="274" class="edge-label">actions</text>
+
+  <path class="edge" d="M340,550 C320,600 300,640 260,680"/>
+  <text x="188" y="620" class="edge-label">controls via CAN</text>
+
+  <path class="edge" d="M430,550 C440,610 455,640 470,680"/>
+  <text x="476" y="630" class="edge-label">reads IMU</text>
+
+  <text x="70" y="964" class="box-text">Contract is bilateral: RLAgent sends action commands and receives observations via controller snapshot API.</text>
+</svg>
