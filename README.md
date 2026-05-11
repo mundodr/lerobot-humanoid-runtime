@@ -24,6 +24,11 @@ This robot can hurt people and damage itself.
 - Python 3.13
 - `uv` for environment management
 
+## Hardware Reference
+
+Bill of materials / hardware repository:
+- <https://github.com/Virgileboat/lerobot-humanoid-hardware>
+
 ## What Is In This Repo
 
 - `robot/sim_robot.py`: MuJoCo simulation controller.
@@ -93,13 +98,20 @@ sudo ip link set can1 up type can bitrate 1000000 dbitrate 5000000 fd on
 ```bash
 meshcat-server
 ```
+5. Note about startup automation:
+   - use custom `systemd` services to auto-start CAN + MeshCat at boot,
+   - enable them:
+```bash
+sudo systemctl enable --now <can-service-name>
+sudo systemctl enable --now <meshcat-service-name>
+```
 
 ### Recommended staged runner
 
 The staged runner enforces pause points:
 
 ```bash
-uv run python deploy/run_real_policy_sequential.py --policy-dir control/policy/codex_iteration
+uv run python deploy/run_real_policy_sequential.py --policy-dir control/policy/codex_iteration_6
 ```
 
 Stages:
@@ -114,7 +126,7 @@ Use this to validate controller/policy wiring without a real robot:
 
 ```bash
 uv run python deploy/run_real_policy_sequential.py \
-  --policy-dir control/policy/codex_iteration \
+  --policy-dir control/policy/codex_iteration_6 \
   --use-mock-bus \
   --no-with-imu \
   --no-with-meshcat \
@@ -127,6 +139,18 @@ Notes:
 - Use `--imu-sensor mock` if you want to test IMU plumbing without hardware.
 - Replace `--policy-dir` with your own policy folder (`config.yaml` + `policy.onnx`).
 - Stop with `Ctrl+C`.
+
+### MeshCat over SSH (remote laptop)
+
+If the robot runs on Pi and you view from another computer, use SSH port forwarding.
+Author command:
+
+```bash
+ssh -L 7000:localhost:7000 lerobot@172.18.133.90
+```
+
+Then open:
+- `http://localhost:7000` (MeshCat web UI in this setup).
 
 ### IPython workflow (from `ipython_helper.py`)
 
