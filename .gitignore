@@ -43,3 +43,6 @@ control/policy/**/zero_snapshot*.json
 *.bak*
 .DS_Store
 Thumbs.db
+
+# Local release tracking notes
+RELEASE_READINESS_AUDIT.md
