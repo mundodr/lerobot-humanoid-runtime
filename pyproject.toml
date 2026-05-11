@@ -3,9 +3,10 @@ name = "lerobot-humanoid-runtime"
 version = "0.1.0"
 description = "Runtime stack for LeRobot humanoid deployment (real + MuJoCo)."
 readme = "README.md"
-requires-python = ">=3.12"
+requires-python = ">=3.13"
 dependencies = [
-  "lerobot[robstride]",
+  # `tools/data_acquisition.py` relies on lerobot datasets helpers.
+  "lerobot[robstride,dataset]",
   "lerobot-humanoid-models",
   "numpy",
   "python-can",
