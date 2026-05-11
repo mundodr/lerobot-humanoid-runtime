@@ -21,14 +21,14 @@ This robot can hurt people and damage itself.
 
 - Raspberry Pi 5
 - Ubuntu
-- Python 3.13 recommended (minimum 3.12 for current LeRobot versions)
+- Python 3.13
 - `uv` for environment management
 
 ## What Is In This Repo
 
 - `robot/sim_robot.py`: MuJoCo simulation controller.
 - `robot/bipedal_robot.py`: real robot controller (CAN MIT protocol + safety).
-- `control/RL_agent_isolated.py`: policy inference runner (ONNX/Torch).
+- `control/rl_agent.py`: policy inference runner (ONNX/Torch).
 - `imu/IMU_integration.py`: IMU backends (`bno055`, `bno085`, `jy901`, `mock`).
 - `apps/gamepad_controller.py`: gamepad command source.
 - `lerobot_humanoid_lerobot_integration/`: LeRobot robot implementation for this humanoid.
@@ -48,9 +48,18 @@ git submodule update --init --recursive
 uv sync
 ```
 
-3. Optional extras:
+3. Install profile by workflow:
 ```bash
+# simulation only
 uv sync --extra sim
+
+# real robot runtime (policy + imu + meshcat + gamepad)
+uv sync --extra policy --extra imu --extra viz --extra gamepad
+
+# plotting/analysis tools
+uv sync --extra tools
+
+# everything
 uv sync --extra full
 ```
 
@@ -90,7 +99,7 @@ meshcat-server
 The staged runner enforces pause points:
 
 ```bash
-uv run python deploy/run_real_policy_sequential.py --policy-dir control/policy/tao_iteration
+uv run python deploy/run_real_policy_sequential.py --policy-dir control/policy/codex_iteration
 ```
 
 Stages:
@@ -99,9 +108,29 @@ Stages:
 3. Switch to `control`, enable motors, send zero pose.
 4. Apply gains and start policy.
 
+### Mock dry-run (no hardware CAN)
+
+Use this to validate controller/policy wiring without a real robot:
+
+```bash
+uv run python deploy/run_real_policy_sequential.py \
+  --policy-dir control/policy/codex_iteration \
+  --use-mock-bus \
+  --no-with-imu \
+  --no-with-meshcat \
+  --no-with-gamepad \
+  --no-pause-between-stages
+```
+
+Notes:
+- This uses in-repo Robstride mock CAN buses for IDs `1..12`.
+- Use `--imu-sensor mock` if you want to test IMU plumbing without hardware.
+- Replace `--policy-dir` with your own policy folder (`config.yaml` + `policy.onnx`).
+- Stop with `Ctrl+C`.
+
 ### IPython workflow (from `ipython_helper.py`)
 
-Use `uv run ipython`, then paste the snippets in [`ipython_helper.py`](/home/virgile/devel/lerobot_humanoid_runtime/ipython_helper.py).
+Use `uv run ipython`, then paste the snippets in [`ipython_helper.py`](./ipython_helper.py).
 
 Key flow:
 1. Create IMU + `BipedalRobotController`.
@@ -113,8 +142,8 @@ Key flow:
 ## LeRobot Integration Mode
 
 In-repo integration module:
-- [`lerobot_humanoid_lerobot_integration/lerobot_humanoid.py`](/home/virgile/devel/lerobot_humanoid_runtime/lerobot_humanoid_lerobot_integration/lerobot_humanoid.py)
-- [`lerobot_humanoid_lerobot_integration/config_lerobot_humanoid.py`](/home/virgile/devel/lerobot_humanoid_runtime/lerobot_humanoid_lerobot_integration/config_lerobot_humanoid.py)
+- [`lerobot_humanoid_lerobot_integration/lerobot_humanoid.py`](./lerobot_humanoid_lerobot_integration/lerobot_humanoid.py)
+- [`lerobot_humanoid_lerobot_integration/config_lerobot_humanoid.py`](./lerobot_humanoid_lerobot_integration/config_lerobot_humanoid.py)
 
 Minimal usage pattern:
 
@@ -137,7 +166,7 @@ Important:
 ### Data Acquisition Script
 
 The identification data acquisition workflow is now included in this repo:
-- [`tools/data_acquisition.py`](/home/virgile/devel/lerobot_humanoid_runtime/tools/data_acquisition.py)
+- [`tools/data_acquisition.py`](./tools/data_acquisition.py)
 
 Example:
 
@@ -155,7 +184,7 @@ uv run python tools/data_acquisition.py \
 Goal: align internal robot state estimation with real hardware state.
 
 Detailed step-by-step guide:
-- [`CALIBRATION.md`](/home/virgile/devel/lerobot_humanoid_runtime/CALIBRATION.md)
+- [`CALIBRATION.md`](./CALIBRATION.md)
 
 ### 1) Verify wiring and motor IDs
 
@@ -172,11 +201,11 @@ Detailed step-by-step guide:
 ### 3) Validate signs and offsets
 
 Primary calibration tables:
-- [`robot/root_constant.py`](/home/virgile/devel/lerobot_humanoid_runtime/robot/root_constant.py)
+- [`robot/root_constant.py`](./robot/root_constant.py)
   - `MOTOR_SIGN`
   - `MOTOR_OFFSET_DEG`
   - `JOINT_LIMITS_DEG`
-- LeRobot-side constants in [`lerobot_humanoid_lerobot_integration/lerobot_humanoid.py`](/home/virgile/devel/lerobot_humanoid_runtime/lerobot_humanoid_lerobot_integration/lerobot_humanoid.py)
+- LeRobot-side constants in [`lerobot_humanoid_lerobot_integration/lerobot_humanoid.py`](./lerobot_humanoid_lerobot_integration/lerobot_humanoid.py)
 
 If estimated pose does not match real pose, this is usually wiring/sign/offset mismatch.
 
@@ -204,6 +233,10 @@ Each policy directory under `control/policy/<name>/` should contain:
   - `config.yml`
   - `model_25000_env.yaml`
   - `config.json`
+
+Note:
+- Absolute paths found inside some policy config files are training artifacts.
+- Runtime deploy uses the local `--policy-dir` files from this repository.
 
 ## Logging and Debugging
 
@@ -235,18 +268,6 @@ Use logs to inspect:
    - Missing visualization dependencies or server not reachable.
    - Check `meshcat` install and `tcp://127.0.0.1:6000` path.
 
-5. LeRobot startup inconsistency vs classical controller.
-   - See known limitation below.
-
-## Known Limitation and Pending Fix
-
-There is currently a startup mismatch between:
-- `robot/bipedal_robot.py` (classical controller),
-- `lerobot_humanoid_lerobot_integration/lerobot_humanoid.py` (LeRobot controller).
-
-Desired behavior: wait for response from all motors before enabling torque / applying startup offsets, matching the classical controller behavior.
-
-Until this is unified:
-- start LeRobot controller only from a safe, near-reference pose,
-- keep initial commands conservative,
-- verify state before any motion command.
+5. LeRobot startup timeout on connect.
+   - Controller now waits for first state response from all motors.
+   - If connect fails with missing motor IDs, check CAN bring-up, wiring, and motor power.
