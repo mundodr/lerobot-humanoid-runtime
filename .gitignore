@@ -26,6 +26,7 @@ htmlcov/
 logs/
 *.log
 *.tmp
+*.csv
 
 # Local debug artifacts
 control/policy/**/debug*.csv
