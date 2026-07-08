@@ -105,6 +105,9 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--max-command-delta-deg", type=float, default=60.0)
     p.add_argument("--viz-hz", type=float, default=20.0)
     p.add_argument("--use-mock-bus", action=argparse.BooleanOptionalAction, default=False)
+    p.add_argument("--use-zqwl-bus", action=argparse.BooleanOptionalAction, default=False)
+    p.add_argument("--zqwl-port", type=str, default=None, help="ZQWL 串口路径，默认自动检测 /dev/ttyACM*")
+    p.add_argument("--zqwl-serial-baudrate", type=int, default=460_800)
     p.add_argument("--mock-default-temp-c", type=float, default=30.0)
     p.add_argument("--mock-send-sleep-s", type=float, default=0.0)
 
@@ -236,6 +239,15 @@ def build_mock_buses(args: argparse.Namespace) -> tuple[Any, Any]:
     return bus_can0, bus_can1
 
 
+def build_zqwl_buses(args: argparse.Namespace) -> tuple[Any, Any]:
+    from robot.zqwl_serial_bus import open_zqwl_can_buses
+
+    return open_zqwl_can_buses(
+        port=args.zqwl_port,
+        serial_baudrate=int(args.zqwl_serial_baudrate),
+    )
+
+
 def main() -> int:
     args = parse_args()
     config_path, policy_path = resolve_policy_files(Path(args.policy_dir))
@@ -251,9 +263,14 @@ def main() -> int:
         print("[stage] 1/4 create robot in state_only", flush=True)
         mock_bus_can0 = None
         mock_bus_can1 = None
+        if args.use_mock_bus and args.use_zqwl_bus:
+            raise SystemExit("[error] --use-mock-bus 与 --use-zqwl-bus 不能同时使用")
         if args.use_mock_bus:
             print("[stage] using mock CAN buses (no hardware CAN access)", flush=True)
             mock_bus_can0, mock_bus_can1 = build_mock_buses(args)
+        elif args.use_zqwl_bus:
+            print("[stage] using ZQWL serial CAN buses (ttyACM)", flush=True)
+            mock_bus_can0, mock_bus_can1 = build_zqwl_buses(args)
         robot = BipedalRobotController(
             control_hz=float(args.control_hz),
             imu=build_imu(args),

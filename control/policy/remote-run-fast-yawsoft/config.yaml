@@ -1,0 +1,75 @@
+inference_hz: 50.0
+action_scale: 1.0
+joint_vel_source: finite_diff
+env_cfg:
+  value:
+    actions:
+      joint_pos:
+        joint_names:
+          - hipz_right
+          - hipx_right
+          - hipy_right
+          - knee_right
+          - ankley_right
+          - anklex_right
+          - hipz_left
+          - hipx_left
+          - hipy_left
+          - knee_left
+          - ankley_left
+          - anklex_left
+        scale:
+          anklex_left: 0.18
+          anklex_right: 0.18
+          ankley_left: 0.22
+          ankley_right: 0.22
+          hipx_left: 0.55
+          hipx_right: 0.55
+          hipy_left: 0.36666666666666664
+          hipy_right: 0.36666666666666664
+          hipz_left: 0.7333333333333333
+          hipz_right: 0.7333333333333333
+          knee_left: 0.36666666666666664
+          knee_right: 0.36666666666666664
+    observations:
+      policy:
+        history_length: 1
+        terms:
+          base_lin_vel:
+            scale: 1.0
+            history_length: 1
+          base_ang_vel:
+            scale: 1.0
+            history_length: 1
+          projected_gravity:
+            scale: 1.0
+            history_length: 1
+          joint_pos:
+            scale: 1.0
+            history_length: 1
+          joint_vel:
+            scale: 1.0
+            history_length: 1
+          actions:
+            scale: 1.0
+            history_length: 1
+          command:
+            scale: 1.0
+            history_length: 1
+    scene:
+      entities:
+        robot:
+          init_state:
+            joint_pos:
+              anklex_left: 0
+              anklex_right: 0
+              ankley_left: 0
+              ankley_right: 0
+              hipx_left: 0
+              hipx_right: 0
+              hipy_left: 0
+              hipy_right: 0
+              hipz_left: 0
+              hipz_right: 0
+              knee_left: 0
+              knee_right: 0
