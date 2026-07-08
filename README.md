@@ -7,6 +7,8 @@ Runtime and calibration stack for a 12-DOF bipedal humanoid (no arms), with:
 
 This repository is meant to be used by anyone building this robot. Calibration is mandatory before deployment.
 
+中文使用指南（架构、通讯、运行、策略部署）：[`docs/使用指南.md`](docs/使用指南.md)
+
 ## Safety First
 
 This robot can hurt people and damage itself.

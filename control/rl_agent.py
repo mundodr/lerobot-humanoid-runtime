@@ -55,6 +55,7 @@ class AgentSpec:
     history_len: int = 1
     inference_hz: float = 50.0
     action_scale: float = 1.0
+    policy_action_clip: Optional[float] = None
     policy_terms: List[str] = field(default_factory=list)
     action_scales_rad: List[float] = field(default_factory=list)
     encoder_bias_rad: List[float] = field(default_factory=list)
@@ -149,11 +150,9 @@ def _extract_policy_terms(cfg: Dict[str, Any]) -> List[str]:
 
 def _canonicalize_policy_terms(policy_terms: List[str]) -> List[str]:
     terms = [str(t) for t in policy_terms]
-    terms_set = set(terms)
-    motion_core_terms = ("projected_gravity", "joint_pos", "joint_vel", "actions", "command")
     alias_terms = {"velocity_commands", "controlled_joint_pos", "controlled_joint_vel"}
     supported_terms = (
-        set(motion_core_terms)
+        {"projected_gravity", "joint_pos", "joint_vel", "actions", "command"}
         | {"base_lin_vel", "base_ang_vel"}
         | set(JOINT_TORQUE_TERM_NAMES)
         | alias_terms
@@ -167,23 +166,6 @@ def _canonicalize_policy_terms(policy_terms: List[str]) -> List[str]:
             UserWarning,
             stacklevel=2,
         )
-
-    torque_term = next((term for term in terms if term in JOINT_TORQUE_TERM_NAMES), None)
-    if (
-        set(motion_core_terms).issubset(terms_set)
-        and len([term for term in terms_set if term in JOINT_TORQUE_TERM_NAMES]) <= 1
-        and not (terms_set - supported_terms)
-        and not any(term in terms_set for term in alias_terms)
-    ):
-        canonical: List[str] = []
-        if "base_lin_vel" in terms_set:
-            canonical.append("base_lin_vel")
-        if "base_ang_vel" in terms_set:
-            canonical.append("base_ang_vel")
-        canonical.extend(motion_core_terms)
-        if torque_term is not None:
-            canonical.append(torque_term)
-        return canonical
     return terms
 
 
@@ -955,6 +937,9 @@ class RLAgent:
     def _apply_action(self, action_vec: np.ndarray) -> None:
         act = np.asarray(action_vec, dtype=np.float32).reshape(-1)
         act = np.nan_to_num(act, nan=0.0, posinf=0.0, neginf=0.0)
+        if self.spec.policy_action_clip is not None:
+            clip = abs(float(self.spec.policy_action_clip))
+            act = np.clip(act, -clip, clip).astype(np.float32, copy=False)
         n = min(len(self.spec.action_keys), int(act.size))
         if n <= 0:
             return
